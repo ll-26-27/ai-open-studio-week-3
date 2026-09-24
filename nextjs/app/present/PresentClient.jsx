@@ -3,22 +3,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { RATE, Take, tapMicrophone } from "../../lib/client/audio.mjs";
 
-// The live transcript comes from short chunks of the take, each sent to Whisper as its own file (a MediaRecorder is
-// restarted every CHUNK_MS so each chunk has its own header). A chunk whose loudest moment stays under QUIET is
-// not sent: Whisper tends to invent a "Thank you." for silence.
-const CHUNK_MS = 5000;
-const QUIET = 0.015;
+// Two passes over the talk. Live: the take is cut into chunks at pauses (3–12 s) and each chunk goes to Whisper,
+// which returns timestamped segments: the grey draft. Slow: about every REVISE_SECONDS, at a chunk boundary, the
+// stretch since the last revision goes to GPT Transcribe, and a text model reconciles the two transcripts into the
+// passage's final text, which replaces the draft. Passages are revised one after another, so each gets the
+// revised text before it as context.
+const REVISE_SECONDS = 30;
 
 const storage = {
   get(key) { try { return localStorage.getItem(key); } catch { return null; } },
   set(key, value) { try { localStorage.setItem(key, value); } catch {} },
 };
-
-function audioType() {
-  const types = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
-  return types.find((type) => typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(type)) || "";
-}
 
 function clock(seconds) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
@@ -32,13 +29,14 @@ export default function PresentClient({ roles }) {
   const faceStreamRef = useRef(null);
   const slideStreamRef = useRef(null);
   const recordingRef = useRef(false);
-  const fullRecorderRef = useRef(null);
-  const fullPartsRef = useRef([]);
-  const chunkRecorderRef = useRef(null);
-  const chunkMetaRef = useRef({ peak: 0 });
-  const chunkIndexRef = useRef(0);
+  const takeRef = useRef(null);
+  const chunksRef = useRef([]);
+  const passagesRef = useRef([]);
+  const liveStartRef = useRef(0);
+  const reviseStartRef = useRef(0);
+  const lastPassageRef = useRef(Promise.resolve());
   const timerRef = useRef(null);
-  const liveRef = useRef([]);
+  const topicRef = useRef("");
 
   const [topic, setTopic] = useState("");
   const [role, setRole] = useState("examiner");
@@ -51,7 +49,7 @@ export default function PresentClient({ roles }) {
   const [phase, setPhase] = useState("idle"); // idle | recording | finishing | done
   const [elapsed, setElapsed] = useState(0);
   const [level, setLevel] = useState(0);
-  const [live, setLive] = useState([]);
+  const [, setVersion] = useState(0);
   const [result, setResult] = useState(null);
   const [status, setStatus] = useState("Starting the camera and microphone…");
 
@@ -71,6 +69,7 @@ export default function PresentClient({ roles }) {
     const analyser = context.createAnalyser();
     analyser.fftSize = 1024;
     context.createMediaStreamSource(stream).connect(analyser);
+    await tapMicrophone(context, stream, (samples) => { if (recordingRef.current) takeRef.current?.add(samples); });
     micRef.current = { stream, context, analyser };
     return stream.getAudioTracks()[0]?.getSettings().deviceId || id || "";
   }, []);
@@ -106,7 +105,7 @@ export default function PresentClient({ roles }) {
     };
   }, [openCamera, openMic]);
 
-  // The level meter, and each chunk's loudest moment.
+  // The level meter.
   useEffect(() => {
     let frame;
     const buffer = new Float32Array(1024);
@@ -116,9 +115,7 @@ export default function PresentClient({ roles }) {
         analyser.getFloatTimeDomainData(buffer);
         let sum = 0;
         for (const sample of buffer) sum += sample * sample;
-        const rms = Math.sqrt(sum / buffer.length);
-        chunkMetaRef.current.peak = Math.max(chunkMetaRef.current.peak, rms);
-        setLevel(rms);
+        setLevel(Math.sqrt(sum / buffer.length));
       }
       frame = requestAnimationFrame(tick);
     }
@@ -172,95 +169,152 @@ export default function PresentClient({ roles }) {
     return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.88));
   }
 
-  function liveText(segments = liveRef.current) {
-    return segments.filter(Boolean).join(" ");
+  const bump = () => setVersion((version) => version + 1);
+
+  function draftOf(chunks) {
+    return chunks.map((chunk) => chunk.text).filter(Boolean).join(" ");
   }
 
-  async function sendChunk(blob, index, peak) {
-    if (peak < QUIET || blob.size < 1000) return;
+  function chunksIn(passage) {
+    return chunksRef.current.filter((chunk) => chunk.start >= passage.start && chunk.end <= passage.end);
+  }
+
+  // The best text so far: revised passages, then the draft for everything not yet revised.
+  function bestText() {
+    const revisedTo = passagesRef.current.filter((passage) => passage.status === "revised").at(-1)?.end ?? 0;
+    const revised = passagesRef.current.filter((passage) => passage.status === "revised").map((passage) => passage.text);
+    return [...revised, draftOf(chunksRef.current.filter((chunk) => chunk.start >= revisedTo))].filter(Boolean).join(" ");
+  }
+
+  function cutChunk(start, end) {
+    const take = takeRef.current;
+    const chunk = { id: chunksRef.current.length, start, end, status: "transcribing", text: "", segments: [] };
+    chunksRef.current.push(chunk);
+    if (!take.hasSpeech(start, end)) {
+      chunk.status = "quiet";
+      chunk.done = Promise.resolve();
+      return;
+    }
     const form = new FormData();
-    form.append("audio", blob, `chunk-${index}.webm`);
-    form.append("prompt", [topic && `Topic: ${topic}.`, liveText().slice(-300)].filter(Boolean).join(" "));
-    try {
-      const response = await fetch("/api/present/transcribe", { method: "POST", body: form });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
-      liveRef.current = [...liveRef.current];
-      liveRef.current[index] = data.text;
-      setLive(liveRef.current);
-    } catch (error) {
-      setStatus(`A live chunk failed (${error.message}); the full take is still being recorded.`);
+    form.append("audio", take.wav(start, end), `chunk-${chunk.id}.wav`);
+    form.append("prompt", [topicRef.current && `Topic: ${topicRef.current}.`, bestText().slice(-300)].filter(Boolean).join(" "));
+    const offset = start / RATE;
+    chunk.done = fetch("/api/present/transcribe", { method: "POST", body: form })
+      .then((response) => response.json().then((data) => { if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`); return data; }))
+      .then((data) => {
+        chunk.text = data.text;
+        chunk.segments = data.segments.map((segment) => ({ ...segment, start: offset + segment.start, end: offset + segment.end }));
+        chunk.status = "done";
+      })
+      .catch((error) => { chunk.status = "failed"; chunk.error = error.message; })
+      .finally(bump);
+    bump();
+  }
+
+  // Queue a passage for revision behind the one before it.
+  function queuePassage(start, end) {
+    const take = takeRef.current;
+    const passage = { id: passagesRef.current.length, start, end, status: "waiting", text: "" };
+    passagesRef.current.push(passage);
+    const previous = lastPassageRef.current;
+    const done = previous.then(async () => {
+      const chunks = chunksIn(passage);
+      await Promise.all(chunks.map((chunk) => chunk.done));
+      if (!take.hasSpeech(start, end)) { passage.status = "revised"; bump(); return; }
+      passage.status = "revising";
+      bump();
+      const context = passagesRef.current.slice(0, passage.id).map((before) => (before.status === "revised" ? before.text : draftOf(chunksIn(before)))).filter(Boolean).join(" ");
+      const form = new FormData();
+      form.append("audio", take.wav(start, end), `passage-${passage.id}.wav`);
+      form.append("draft", JSON.stringify(chunks.flatMap((chunk) => chunk.segments)));
+      form.append("context", context.slice(-1200));
+      form.append("topic", topicRef.current);
+      try {
+        const response = await fetch("/api/present/revise", { method: "POST", body: form });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+        Object.assign(passage, { status: "revised", text: data.text, careful: data.careful, model: data.model });
+      } catch (error) {
+        Object.assign(passage, { status: "failed", error: error.message });
+      }
+      bump();
+    });
+    lastPassageRef.current = done;
+    bump();
+  }
+
+  function tick() {
+    const take = takeRef.current;
+    const cut = take.cutPoint(liveStartRef.current);
+    if (cut == null || cut <= liveStartRef.current) return;
+    cutChunk(liveStartRef.current, cut);
+    liveStartRef.current = cut;
+    if ((cut - reviseStartRef.current) / RATE >= REVISE_SECONDS) {
+      queuePassage(reviseStartRef.current, cut);
+      reviseStartRef.current = cut;
     }
   }
 
-  function startChunk(type) {
-    const stream = micRef.current?.stream;
-    if (!recordingRef.current || !stream) return;
-    const recorder = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
-    const parts = [];
-    const index = chunkIndexRef.current++;
-    const meta = { peak: 0 };
-    chunkMetaRef.current = meta;
-    recorder.ondataavailable = (event) => { if (event.data.size) parts.push(event.data); };
-    recorder.onstop = () => sendChunk(new Blob(parts, { type: recorder.mimeType }), index, meta.peak);
-    recorder.start();
-    chunkRecorderRef.current = recorder;
-  }
-
-  function start() {
-    const stream = micRef.current?.stream;
-    if (!stream) { setStatus("No microphone is open."); return; }
-    const type = audioType();
+  async function start() {
+    const mic = micRef.current;
+    if (!mic) { setStatus("No microphone is open."); return; }
+    await mic.context.resume();
+    takeRef.current = new Take(mic.context.sampleRate);
+    chunksRef.current = [];
+    passagesRef.current = [];
+    liveStartRef.current = 0;
+    reviseStartRef.current = 0;
+    lastPassageRef.current = Promise.resolve();
+    topicRef.current = topic;
     recordingRef.current = true;
-    liveRef.current = [];
-    chunkIndexRef.current = 0;
-    fullPartsRef.current = [];
-    setLive([]);
     setResult(null);
     setElapsed(0);
-    const full = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
-    full.ondataavailable = (event) => { if (event.data.size) fullPartsRef.current.push(event.data); };
-    full.start(1000);
-    fullRecorderRef.current = full;
-    startChunk(type);
     const began = Date.now();
-    let lastChunk = began;
     timerRef.current = setInterval(() => {
       setElapsed(Math.floor((Date.now() - began) / 1000));
-      if (Date.now() - lastChunk >= CHUNK_MS) {
-        lastChunk = Date.now();
-        chunkRecorderRef.current?.stop();
-        startChunk(type);
-      }
-    }, 250);
+      tick();
+    }, 100);
     setPhase("recording");
-    setStatus("Recording. Talk to the room; the transcript fills in a few seconds behind you.");
+    setStatus("Recording. The grey draft fills in at each pause; every half minute or so it is revised and turns white.");
+    bump();
   }
 
   async function stop() {
     recordingRef.current = false;
     clearInterval(timerRef.current);
-    chunkRecorderRef.current?.stop();
+    const take = takeRef.current;
+    const end = take.length;
+    if (end - liveStartRef.current > RATE * 0.3) cutChunk(liveStartRef.current, end);
+    if (end - reviseStartRef.current > RATE * 0.5) queuePassage(reviseStartRef.current, end);
     setPhase("finishing");
-    setStatus("Transcribing the whole take and asking for follow-ups…");
-    const full = fullRecorderRef.current;
-    const audio = await new Promise((resolve) => {
-      full.onstop = () => resolve(new Blob(fullPartsRef.current, { type: full.mimeType }));
-      full.stop();
-    });
+    const waiting = passagesRef.current.filter((passage) => passage.status !== "revised" && passage.status !== "failed").length;
+    setStatus(`Revising the transcript (${waiting} passage${waiting === 1 ? "" : "s"} to go), then asking for follow-ups. This part is slow on purpose.`);
+    await lastPassageRef.current;
+
+    const transcript = passagesRef.current.map((passage) => (passage.status === "revised" ? passage.text : draftOf(chunksIn(passage)))).filter(Boolean).join(" ");
+    const record = {
+      topic,
+      role,
+      seconds: take.seconds(),
+      chunks: chunksRef.current.map(({ id, start, end, status, text, segments, error }) => ({ id, start: start / RATE, end: end / RATE, status, text, segments, error })),
+      passages: passagesRef.current.map(({ id, start, end, status, text, careful, model, error }) => ({ id, start: start / RATE, end: end / RATE, status, text, careful, model, error })),
+    };
     const form = new FormData();
-    form.append("audio", audio, "take.webm");
+    form.append("audio", take.wav(), "take.wav");
     const slide = await slideSnapshot();
     if (slide) form.append("slide", slide, "slide.jpg");
     form.append("topic", topic);
     form.append("role", role);
-    form.append("live", liveText());
+    form.append("transcript", transcript);
+    form.append("record", JSON.stringify(record, null, 2));
+    setStatus("Asking for follow-ups…");
     try {
       const response = await fetch("/api/present/finish", { method: "POST", body: form });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
-      setResult(data);
-      const problems = [data.transcribeError && `transcript: ${data.transcribeError}`, data.followupsError && `follow-ups: ${data.followupsError}`, data.saveError && `save: ${data.saveError}`].filter(Boolean);
+      setResult({ ...data, transcript });
+      const failed = passagesRef.current.filter((passage) => passage.status === "failed").length;
+      const problems = [failed && `${failed} passage${failed === 1 ? "" : "s"} kept the draft`, data.followupsError && `follow-ups: ${data.followupsError}`, data.saveError && `save: ${data.saveError}`].filter(Boolean);
       setStatus(problems.length ? `Done, with problems (${problems.join("; ")}).` : `Done. Saved to _media/${data.saved}/.`);
     } catch (error) {
       setStatus(`Couldn't finish the take: ${error.message}`);
@@ -270,7 +324,15 @@ export default function PresentClient({ roles }) {
 
   const recording = phase === "recording";
   const busy = phase === "finishing";
-  const transcript = result?.transcript || liveText(live);
+  // Revised passages in full ink; everything still in draft in grey.
+  const revisedTo = passagesRef.current.filter((passage) => passage.status === "revised" || passage.status === "failed").at(-1)?.end ?? 0;
+  const pieces = [
+    ...passagesRef.current.map((passage) => (passage.status === "revised"
+      ? { key: `p${passage.id}`, text: passage.text, revised: true }
+      : { key: `p${passage.id}`, text: draftOf(chunksIn(passage)), revising: passage.status === "revising" || passage.status === "waiting" })),
+    ...chunksRef.current.filter((chunk) => chunk.start >= Math.max(revisedTo, passagesRef.current.at(-1)?.end ?? 0)).map((chunk) => ({ key: `c${chunk.id}`, text: chunk.status === "transcribing" ? "…" : chunk.text })),
+  ].filter((piece) => piece.text);
+  const revisedCount = passagesRef.current.filter((passage) => passage.status === "revised").length;
 
   return (
     <div className="present">
@@ -326,8 +388,12 @@ export default function PresentClient({ roles }) {
 
       <div className="present-results">
         <section>
-          <h2 className="eyebrow">{result?.transcript ? "Transcript (whole take)" : "Live transcript"}</h2>
-          <p className="present-transcript">{transcript || (recording ? "Listening…" : "Nothing yet.")}</p>
+          <h2 className="eyebrow">Transcript{passagesRef.current.length ? ` · ${revisedCount} of ${passagesRef.current.length} passage${passagesRef.current.length === 1 ? "" : "s"} revised` : ""}</h2>
+          <p className="present-transcript">
+            {pieces.length
+              ? pieces.map((piece) => <span key={piece.key} className={piece.revised ? "present-revised" : piece.revising ? "present-draft present-revising" : "present-draft"}>{piece.text} </span>)
+              : recording ? "Listening…" : "Nothing yet."}
+          </p>
         </section>
         <section>
           <h2 className="eyebrow">Follow-ups</h2>

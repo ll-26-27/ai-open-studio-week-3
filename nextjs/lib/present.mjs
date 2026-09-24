@@ -42,14 +42,23 @@ function stamp(date = new Date()) {
   return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
 }
 
-// Each take is a folder in _media/present/: the audio, the slide as it was at the end, and take.md.
-export async function saveTake({ audio, slide, topic, role, transcript, followups }) {
+// Each take is a folder in _media/present/: the audio, the slide as it was at the end, take.md (the revised
+// transcript, the follow-ups, and the live draft with timestamps), and take.json (every chunk and passage).
+export async function saveTake({ audio, slide, topic, role, transcript, followups, record }) {
   const name = stamp();
   const directory = path.join(mediaRoot, "present", name);
   await mkdir(directory, { recursive: true });
-  await writeFile(path.join(directory, "take.webm"), audio);
+  if (audio) await writeFile(path.join(directory, "take.wav"), audio);
   if (slide) await writeFile(path.join(directory, "slide.jpg"), slide);
-  const markdown = [`# Take ${name}`, "", `- **Topic:** ${topic || "(not given)"}`, `- **Follow-ups from:** ${(roles[role] || roles.examiner).label}`, "", "## Transcript", "", transcript || "(nothing transcribed)", "", followups || ""].join("\n");
+  let draft = "";
+  if (record) {
+    await writeFile(path.join(directory, "take.json"), record + "\n");
+    try {
+      const clock = (seconds) => `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(1).padStart(4, "0")}`;
+      draft = (JSON.parse(record).chunks || []).flatMap((chunk) => chunk.segments || []).map((segment) => `- [${clock(segment.start)}] ${segment.text}`).join("\n");
+    } catch {}
+  }
+  const markdown = [`# Take ${name}`, "", `- **Topic:** ${topic || "(not given)"}`, `- **Follow-ups from:** ${(roles[role] || roles.examiner).label}`, "", "## Transcript", "", transcript || "(nothing transcribed)", "", followups || "", "", "## Live draft (Whisper, with timestamps)", "", draft || "(none)"].join("\n");
   await writeFile(path.join(directory, "take.md"), markdown + "\n");
   return `present/${name}`;
 }

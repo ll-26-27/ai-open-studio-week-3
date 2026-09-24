@@ -248,3 +248,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
 .present-followups > :first-child { margin-top: 0; }
 .present-followups h2 { font-size: 20px; }
 @media (max-width: 900px) { .present-controls, .present-results { grid-template-columns: 1fr; } }
+.present-draft { color: var(--muted); }
+.present-revising { animation: present-pulse 1.6s ease-in-out infinite; }
+.present-revised { color: var(--ink); }
+@keyframes present-pulse { 50% { opacity: .55; } }
