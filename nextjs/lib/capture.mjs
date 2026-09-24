@@ -13,6 +13,8 @@ export const stations = {
   obscura: "Camera obscura",
   phone: "Phone",
   other: "Other",
+  // The studio's /writing page: paper, cards, sticky notes, whiteboards.
+  writing: "Writing",
 };
 
 const env = (name) => (process.env[name] || "").trim();

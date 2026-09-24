@@ -13,17 +13,28 @@ const prompts = {
   other: "This still was captured in a class on camera and lighting craft. Say what is in the frame and how it is lit and framed.",
 };
 
+// Writing gets a transcription, not a two-sentence description, so it has its own prompt, format, and length.
+const writingPrompt = [
+  "This still shows writing on one or more pieces of paper, cards, sticky notes, or a whiteboard, photographed during a workshop.",
+  "For each piece, in reading order (top to bottom, then left to right), write a Markdown heading `### <n>. <the surface>` that describes it: what it is (index card, sticky note, notebook page, printer paper, whiteboard), its color, any ruling or grid, and what it is written with (pen, pencil, marker, and the ink color).",
+  "Under each heading, transcribe the text exactly as written, keeping its line breaks and lists. Show crossed-out words as ~~struck~~. Put [illegible] where you cannot read a word rather than guessing, and describe drawings, arrows, or diagrams briefly in [square brackets].",
+  "If a piece is blank, say so under its heading. If there is only one piece, still give it a heading.",
+  "No preamble, no summary, no commentary on the content, and don't guess who wrote it.",
+].join(" ");
+
+export const maxTokens = { writing: 2000 };
+
 export async function describeImage(bytes, station, { apiKey, model }) {
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "X-Title": "tdm155ai-week-3 capture" },
     body: JSON.stringify({
       model: model || defaultModel,
-      max_tokens: 300,
+      max_tokens: maxTokens[station] || 300,
       messages: [{
         role: "user",
         content: [
-          { type: "text", text: `${prompts[station] || prompts.other} ${common}` },
+          { type: "text", text: station === "writing" ? writingPrompt : `${prompts[station] || prompts.other} ${common}` },
           { type: "image_url", image_url: { url: `data:image/jpeg;base64,${Buffer.from(bytes).toString("base64")}` } },
         ],
       }],

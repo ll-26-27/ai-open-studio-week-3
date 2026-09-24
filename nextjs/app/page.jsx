@@ -9,7 +9,7 @@ export default function Home() {
         <h1 id="studio-title"><span>ai open</span><span>studio</span><span>week <span className="accent">3</span></span></h1>
         <div className="hero-foot"><span>Media projects · orals · notes from photos</span><span aria-hidden="true">↓</span><span>September 24, 2026</span></div>
       </section>
-      <nav className="home-links" aria-label="Examples">
+      <nav className="home-links home-links-3" aria-label="Examples">
         {examples.map((example) => (
           <Link className="home-link" href={example.href} key={example.href}>
             <span className="eyebrow">{example.number} / {example.eyebrow}</span>

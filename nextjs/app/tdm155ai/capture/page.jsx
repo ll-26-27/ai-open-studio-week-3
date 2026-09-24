@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { stations } from "../../../lib/capture.mjs";
-import CaptureClient from "./CaptureClient.jsx";
+import CaptureClient from "../../components/CaptureClient.jsx";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,9 @@ export const metadata = { title: "Capture" };
 // the Web Presenter's USB-C webcam output shows up as a camera with no driver.
 export default async function CapturePage({ searchParams }) {
   const { station } = await searchParams;
-  const initial = Object.hasOwn(stations, station || "") ? station : "other";
+  // The class page keeps its own five stations; "writing" belongs to the studio's /writing page.
+  const classStations = Object.fromEntries(Object.entries(stations).filter(([key]) => key !== "writing"));
+  const initial = Object.hasOwn(classStations, station || "") ? station : "other";
 
   return (
     <>
@@ -24,7 +26,7 @@ export default async function CapturePage({ searchParams }) {
         </nav>
       </header>
       <main id="main" className="capture-main">
-        <CaptureClient stations={stations} initialStation={initial} />
+        <CaptureClient stations={classStations} initialStation={initial} />
       </main>
     </>
   );

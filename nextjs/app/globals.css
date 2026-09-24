@@ -216,3 +216,35 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
 .capture-copy:hover { border-color: var(--accent); }
 .live-description { margin: 6px 0 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
 .capture-description { font-size: 12px; line-height: 1.45; color: var(--ink); margin: 0; }
+
+/* --- /writing: captures of paper, each with its transcription beside it --- */
+.capture-still { display: grid; gap: 4px; align-content: start; }
+.capture-documents { grid-template-columns: 1fr; gap: 28px; }
+.capture-documents li { grid-template-columns: minmax(220px, 38%) 1fr; gap: 28px; align-items: start; border-top: 1px solid var(--line); padding-top: 22px; }
+.capture-documents img { aspect-ratio: auto; object-fit: contain; }
+.capture-transcript { max-width: 72ch; }
+.capture-transcript > :first-child { margin-top: 0; }
+@media (max-width: 760px) { .capture-documents li { grid-template-columns: 1fr; } }
+.capture-transcript p { white-space: pre-line; }
+
+/* --- /present: slide with the face inset, live transcript, follow-ups --- */
+.present-controls { display: grid; grid-template-columns: minmax(260px, 2fr) repeat(3, minmax(160px, 1fr)); gap: 14px; margin-bottom: 18px; }
+.present-field { display: grid; gap: 6px; min-width: 0; }
+.present-field input, .present-field select { font-family: inherit; font-size: 14px; color: var(--ink); background: var(--wash); border: 1px solid var(--line); border-radius: 6px; padding: 9px 10px; min-width: 0; }
+.present-stage { position: relative; background: #000; border: 1px solid var(--line); aspect-ratio: 16 / 9; max-height: 68vh; margin: 0 auto; overflow: hidden; }
+.present-slide { width: 100%; height: 100%; object-fit: contain; display: block; }
+.present-face { position: absolute; right: 16px; bottom: 16px; width: 24%; aspect-ratio: 16 / 9; object-fit: cover; border: 2px solid var(--ink); background: #111; transform: scaleX(-1); }
+.present-empty { position: absolute; inset: 0; display: grid; place-content: center; gap: 18px; text-align: center; color: var(--muted); }
+.present-empty p { margin: 0; font-size: 20px; }
+.present-slide-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.present-change { position: absolute; top: 12px; left: 12px; }
+.present-stop { background: #ff8a7a; }
+.present-clock { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.present-meter { width: 180px; height: 8px; background: var(--wash); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.present-meter span { display: block; height: 100%; background: var(--accent); transition: width .08s; }
+.present-results { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; margin-top: 26px; border-top: 1px solid var(--line); padding-top: 22px; }
+.present-results h2 { margin: 0 0 12px; }
+.present-transcript { margin: 0; font-size: 17px; line-height: 1.7; color: var(--ink); white-space: pre-line; }
+.present-followups > :first-child { margin-top: 0; }
+.present-followups h2 { font-size: 20px; }
+@media (max-width: 900px) { .present-controls, .present-results { grid-template-columns: 1fr; } }

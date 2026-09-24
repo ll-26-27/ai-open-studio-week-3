@@ -35,7 +35,7 @@ export async function POST(request) {
 
   // The description runs first because the Slack post carries it; the NAS copy doesn't wait for it.
   const described = form.get("describe") === "1" && config.openrouterKey
-    ? withTimeout(describeImage(bytes, station, { apiKey: config.openrouterKey, model: config.openrouterModel }), 30000, "Description")
+    ? withTimeout(describeImage(bytes, station, { apiKey: config.openrouterKey, model: config.openrouterModel }), station === "writing" ? 90000 : 30000, "Description")
       .then((text) => { result.description = text; }, (error) => { result.describe = `failed: ${error.message}`; })
     : Promise.resolve();
 

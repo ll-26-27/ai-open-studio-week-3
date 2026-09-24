@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 // Preferred camera: the Web Presenter (it names itself "Blackmagic Design"), then OBS Virtual Camera, else the first.
 const preferred = /blackmagic|web presenter|obs virtual/i;
@@ -9,7 +11,9 @@ const storageKey = "capture-device";
 function remember(key, value) { try { localStorage.setItem(key, value); } catch {} }
 function recall(key) { try { return localStorage.getItem(key); } catch { return null; } }
 
-export default function CaptureClient({ stations, initialStation }) {
+// `documents` is for captures whose description is a long Markdown transcription (the /writing page): the recent
+// list becomes one row per capture, still on the left, rendered text on the right.
+export default function CaptureClient({ stations, initialStation, documents = false }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const busyRef = useRef(false);
@@ -175,13 +179,17 @@ export default function CaptureClient({ stations, initialStation }) {
       <p className={`capture-status capture-status-${status.tone}`} role="status">{status.text}</p>
 
       {recent.length > 0 && (
-        <ul className="capture-recent" aria-label="Your recent captures">
+        <ul className={documents ? "capture-recent capture-documents" : "capture-recent"} aria-label="Your recent captures">
           {recent.map((item) => (
             <li key={item.id}>
-              <img src={item.thumb} alt={item.name || "capture"} />
-              <span className={`capture-note capture-status-${item.tone}`}>{item.note}</span>
-              {item.description && <p className="capture-description">{item.description}</p>}
-              {item.markdown && <button type="button" className="capture-copy" onClick={() => copy(item)}>Copy MD</button>}
+              <div className="capture-still">
+                <img src={item.thumb} alt={item.name || "capture"} />
+                <span className={`capture-note capture-status-${item.tone}`}>{item.note}</span>
+                {item.markdown && <button type="button" className="capture-copy" onClick={() => copy(item)}>Copy MD</button>}
+              </div>
+              {item.description && (documents
+                ? <div className="capture-transcript prose"><ReactMarkdown remarkPlugins={[remarkGfm]}>{item.description}</ReactMarkdown></div>
+                : <p className="capture-description">{item.description}</p>)}
             </li>
           ))}
         </ul>
