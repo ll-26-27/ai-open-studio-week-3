@@ -1,0 +1,98 @@
+{
+  "title": "Dramatic portrait lighting, ten models",
+  "prompt": "a portrait dramatic portrait lighting",
+  "made": "2026-09-24",
+  "note": "One prompt, one run each, ten image models from ten companies, all through fal, with no other settings changed. Each lighting note was written afterwards by a vision model (Claude Sonnet 5) in the lights station vocabulary, the same way the capture wall describes the class stills. Check them against the pictures: they are readings, not ground truth.",
+  "items": [
+    {
+      "file": "fal-ai-nano-banana-pro.jpg",
+      "model": "Nano Banana Pro",
+      "company": "Google",
+      "endpoint": "fal: fal-ai/nano-banana-pro",
+      "width": 1600,
+      "height": 1600,
+      "lighting": "The key light sits around 1-2 o'clock, high and fairly hard, raking across the forehead and nose bridge and leaving the left side of the face and left shoulder in deep shadow with minimal fill, giving heavy falloff and a narrow lit wedge on the face. There's no visible rim or kicker separating the dark side from the equally dark background, and no clear catchlight is visible in the shadowed eye, making it hard to confirm eye placement of the light. The overall falloff and lack of separation light are plausible for a single hard source close to the subject, but the total absence of fill or background separation is a bit more extreme than a typical controlled studio setup."
+    },
+    {
+      "file": "openai-gpt-image-2.jpg",
+      "model": "GPT Image 2",
+      "company": "OpenAI",
+      "endpoint": "fal: openai/gpt-image-2",
+      "width": 1600,
+      "height": 1200,
+      "lighting": "The key light sits around 3-4 o'clock, slightly above eye level, striking the right side of the face while the left side falls into deep shadow with almost no fill, giving a hard-edged, high-contrast look consistent with a small, undiffused source or direct sunlight through a window. There's no visible rim or kicker separating the hair from the dark background, and only a single small catchlight is visible in the right eye with the left eye going nearly dark. This lighting pattern is plausible for a real setup (a single hard source near a window or a bare strobe), though the total absence of fill or separation light is a bit extreme for typical studio portraiture."
+    },
+    {
+      "file": "fal-ai-flux-2-pro.jpg",
+      "model": "FLUX.2 Pro",
+      "company": "Black Forest Labs",
+      "endpoint": "fal: fal-ai/flux-2-pro",
+      "width": 1600,
+      "height": 1200,
+      "lighting": "The key light sits around 9 o'clock, low and close to the lens axis, hitting the left side of the face while the right side falls into near-total shadow with no visible fill. It reads as a moderately hard source given the crisp falloff across the bridge of the nose and cheek, with a single small catchlight visible in the left eye and essentially none in the shadowed eye. There's no discernible backlight or rim separating the hair from the black background, which is plausible as a single-source setup but not a fully built studio lighting scheme."
+    },
+    {
+      "file": "bytedance-seedream-v5-pro.jpg",
+      "model": "Seedream 5.0 Pro",
+      "company": "ByteDance",
+      "endpoint": "fal: bytedance/seedream/v5/pro/text-to-image",
+      "width": 1200,
+      "height": 1600,
+      "lighting": "The key light sits around 2-3 o'clock, low and close to hard, creating a defined nose shadow that crosses the philtrum and cuts across the left cheek; there's little to no fill, so the shadow side falls off steeply into near-black with no visible catchlight in the left eye. A small catchlight appears in the upper-right of the right eye, and there's no discernible back light, rim, or kicker separating the hair from the dark background. The falloff and hard-edged shadow shape (with a separate hard-edged bright wall segment behind him) look more like directional window light or a hard undiffused strip than a controlled multi-light studio setup, though a single hard key with no fill is plausible on its own."
+    },
+    {
+      "file": "xai-grok-imagine-image-v2-0.jpg",
+      "model": "Grok Imagine Image 2.0",
+      "company": "xAI",
+      "endpoint": "fal: xai/grok-imagine-image/v2.0/text-to-image",
+      "width": 1600,
+      "height": 1600,
+      "lighting": "The key light sits around 9-10 o'clock, slightly above eye level, striking the left side of the face (his right) and leaving the opposite side to fall into shadow with a narrow wrap of light across the bridge of the nose. It's a moderately hard source with no visible fill, so the shadow side drops off quickly with no detail retained, and there's no distinct rim or kicker separating him from the dark background. A small catchlight is visible in the lit eye at roughly 9-10 o'clock, none discernible in the shadowed eye, which is consistent with a single-source studio setup like a fresnel or bare strobe with grid, though the lack of any fill or edge light makes it a simplified, slightly less naturalistic version of that classic dramatic lighting pattern."
+    },
+    {
+      "file": "ideogram-v4.jpg",
+      "model": "Ideogram 4.0",
+      "company": "Ideogram",
+      "endpoint": "fal: ideogram/v4",
+      "width": 1600,
+      "height": 1600,
+      "lighting": "The key light sits around 9 o'clock, slightly above eye level, and is fairly hard given the crisp shadow edge running down the nose and the sharp-edged shadow shape crossing the neck and shoulder. There's little to no fill on the right side of the face, which falls into deep shadow, no visible rim or kicker separating the hair from the background, and no clear catchlights are visible in the eyes. The abrupt, sharply-defined diagonal shadow across the collarbone doesn't match the falloff pattern on the face, suggesting a physically inconsistent light source (like an added gobo or matte painted shadow) rather than a single coherent studio light."
+    },
+    {
+      "file": "krea-v2-large.jpg",
+      "model": "Krea 2 Large",
+      "company": "Krea",
+      "endpoint": "fal: krea/v2/large/text-to-image",
+      "width": 1600,
+      "height": 1600,
+      "lighting": "The key light sits around 9 to 9:30, low-ish and hard, raking across the left side of the face and neck with a crisp, well-defined shadow line down the bridge of the nose and jaw. There's no visible fill, since the right side of the face falls into near-total black, and no discernible back light or rim on the hair edges on the shadow side, though the hard side-light does catch some hair strands on the left. No catchlights are visible since the eyes are closed; the overall setup (one hard, undiffused source at a low side angle with no fill) is plausible for a real studio single-light setup, though the falloff into pure black on the shadow side is more extreme than typical fill-light-supplemented studio work."
+    },
+    {
+      "file": "fal-ai-recraft-v4.jpg",
+      "model": "Recraft V4",
+      "company": "Recraft",
+      "endpoint": "fal: fal-ai/recraft/v4/text-to-image",
+      "width": 1600,
+      "height": 1600,
+      "lighting": "The key light comes from roughly the 10-11 o'clock position, high and hard, functioning as a window-type source that produces the sharp-edged diagonal shadow bar crossing the forehead and cheek — consistent with direct sunlight through a window blind or doorway rather than a shaped studio light. There's minimal fill, so shadow side of the face drops off quickly, no visible rim or kicker on the hair/shoulders, and catchlights are faint, sitting low in the eyes toward the lit side. The hard directional streaking and the way it slices unnaturally across facial features (cutting oddly at the nose bridge without a consistent occlusion logic) reads as plausible for real hard light in principle, but the shadow shape and edge falloff are slightly inconsistent with a single coherent light source, suggesting AI-generated inconsistency rather than an actual studio or natural-light rig."
+    },
+    {
+      "file": "meta-muse-image.jpg",
+      "model": "Muse Image",
+      "company": "Meta",
+      "endpoint": "fal: meta/muse-image/text-to-image",
+      "width": 1066,
+      "height": 1600,
+      "lighting": "The key light sits around 10 o'clock and high, a hard, undiffused source given the sharp shadow edges under the brow, nose, and jaw, with no visible fill so the shadow side of the face (camera right) falls to near black. There's no distinct rim or kicker separating her hair from the background; the glow at upper left is the key light source itself bleeding into frame rather than a true backlight, and no catchlights are visible in the eyes despite the light's intensity, which is inconsistent with a hard source that close. The falloff and lack of catchlight or fill reflector make this lighting setup implausible as a real single-source studio configuration."
+    },
+    {
+      "file": "alibaba-qwen-image-3.jpg",
+      "model": "Qwen Image 3",
+      "company": "Alibaba",
+      "endpoint": "fal: alibaba/qwen-image-3/text-to-image",
+      "width": 1600,
+      "height": 1600,
+      "lighting": "The key light is a hard, undiffused source positioned around 10 o'clock and slightly above the subject, creating a narrow shaft that grazes across the forehead, brow, nose and cheek while leaving the right side of the face and most of the frame in deep shadow. There is no visible fill and no distinct catchlight in the eyes, with a faint cool rim tracing the left jaw and shoulder that reads as a secondary edge light around 8 o'clock rather than a true backlight. The setup is plausible as a single hard spot or flag-narrowed light with minimal ambient bounce, though the razor-sharp beam edge on the background suggests a gobo or snoot rather than typical studio modifiers."
+    }
+  ]
+}

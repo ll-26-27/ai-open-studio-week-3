@@ -32,6 +32,10 @@ Positions use a clock face seen from above: the subject sits at the center facin
 
 Watch the clock series play back on the wall. 12 is flat; 2 and 10 are the portrait angles; 3 and 9 split the face; 4, 5, 7, and 8 rake it from behind; 6 is a silhouette with a rim. Key, kicker, back light: the words are positions, not lamps. The catchlight moves around the eye as the key moves around the clock. That's the vocabulary: when you like a creator's lighting, you can now say where the key was.
 
+## Compare
+
+[Ten AI portraits of "dramatic portrait lighting"](/galleries/dramatic-portrait-lighting): the same three-word prompt through ten image models, each with a note on where its key light is. Say where the key is before you read the note, then check the note against the picture. Which ones could you build at this station, and which have light no real lamp could make?
+
 ## Share
 
 On the station computer, the [capture page](/capture?station=lights) shows the studio camera's feed. When you like the shot, press **Capture** (or the space bar); the still goes to the wall. Name nothing; just press it. Fill / no fill, then the two clock series.
